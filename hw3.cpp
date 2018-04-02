@@ -1,10 +1,45 @@
-//
-//
-//
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
 #include "turtlesim/Pose.h"
 #include <sstream>
+#include <turtlesim/Spawn.h>
+#include <turtlesim/Kill.h>
+#include <stdlib.h>
+#include <ros/master.h>
+#include <boost/algorithm/string.hpp>
+
+struct TurtlePose {
+  std::string turtlename;
+  std::string topicname;
+  turtlesim::Pose pose;
+};
+
+static ros::ServiceClient sClient;
+static ros::ServiceClient kClient;
+
+// Euclidian distance
+double getDistance(const double x1, const double y1, const double x2, const double y2) {
+  return sqrt(pow((x1-x2),2) + pow(y1-y2, 2));
+}
+
+// Check if contact is close
+bool isTooClose(double x1, double y1, double x2, double y2, double threshhold) {
+  if (getDistance(x1, y1, x2, y2) <= threshhold)
+     return true;
+  else
+     return false;
+}
+
+// Remove captured turtle
+void removeTurtle(std::string turtlename) {
+  turtlesim::Kill::Request reqk;
+  turtlesim::Kill::Response respk;
+
+  reqk.name = turtlename.c_str();
+  if (!kClient.call(reqk, respk))
+     ROS_ERROR_STREAM("Error: Failed to kill " << reqk.name.c_str() << "\n");
+}
+
 //create global publisher
 ros::Publisher velocity_publisher;
 ros::Subscriber pose_subscriber;
@@ -28,18 +63,8 @@ int main (int argc, char **argv)
 	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
 	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
 
-	
-	//test case -- change later
-	move (1.0, 2.0);
-	rotate (2.0, 1.19);
-	move (1.0, 2.0);
-	rotate (2.0, 2.17);
-	move (1.0, 1.6);
-	rotate (2.0, 4.7);
-	move (1.0, 1.6);
-	rotate (2.0, 2.19);
-	move (1.0, 2.0);
-	
+	//move( 0.5, 3);
+	removeTurtle("turtle");
 	ros::spin();
 
 }
