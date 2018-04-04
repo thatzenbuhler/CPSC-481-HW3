@@ -8,13 +8,15 @@
 #include <ros/master.h>
 #include <boost/algorithm/string.hpp>
 
+using namespace std;
+
 struct TurtlePose {
   std::string turtlename;
   std::string topicname;
   turtlesim::Pose pose;
 };
 
-static ros::ServiceClient sClient;
+//static ros::ServiceClient sClient;
 static ros::ServiceClient kClient;
 
 //create global publisher
@@ -27,6 +29,7 @@ bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
 void removeTurtle(std::string turtlename);
 void move(double speed, double dist);
 void rotate (double ang_speed, double angl);
+void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
 
 
@@ -41,7 +44,7 @@ int main (int argc, char **argv)
 	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
 
 	//move( 0.5, 3);
-	removeTurtle("turtle");
+	removeTurtle("/turtle1/");
 	ros::spin();
 
 }
@@ -128,9 +131,38 @@ void rotate (double ang_speed, double angl)
 
 }
 
+void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance){
+	
+	geometry_msgs::Twist vel_msg;
+
+	ros::Rate loop_rate(10);
+	do{
+		//linear velocity 
+		vel_msg.linear.x = 1.5*getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y);
+		vel_msg.linear.y = 0;
+		vel_msg.linear.z = 0;
+		//angular velocity
+		vel_msg.angular.x = 0;
+		vel_msg.angular.y = 0;
+		vel_msg.angular.z = 4*(atan2(goal_pose.y - turtlesim_pose.y, goal_pose.x - turtlesim_pose.x)-turtlesim_pose.theta);
+
+		velocity_publisher.publish(vel_msg);
+
+		ros::spinOnce();
+		loop_rate.sleep();
+
+	}while(getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y)>distance_tolerance);
+	cout<<"end move goal"<<endl;
+	vel_msg.linear.x = 0;
+	vel_msg.angular.z = 0;
+	velocity_publisher.publish(vel_msg);
+
+}
+
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 {
 	turtlesim_pose.x = pose_message -> x;
 	turtlesim_pose.y = pose_message -> y;
 	turtlesim_pose.theta = pose_message -> theta;
 }
+
