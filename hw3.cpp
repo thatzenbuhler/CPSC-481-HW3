@@ -17,6 +17,35 @@ struct TurtlePose {
 static ros::ServiceClient sClient;
 static ros::ServiceClient kClient;
 
+//create global publisher
+ros::Publisher velocity_publisher;
+ros::Subscriber pose_subscriber;
+turtlesim::Pose turtlesim_pose;
+
+double getDistance(const double x1, const double y1, const double x2, const double y2);
+bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
+void removeTurtle(std::string turtlename);
+void move(double speed, double dist);
+void rotate (double ang_speed, double angl);
+void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
+
+
+int main (int argc, char **argv)
+{
+	ros::init(argc, argv, "turtle");
+	ros::NodeHandle n;
+	ros::Rate loop_rate(10);
+	
+	//initialize publisher
+	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
+	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
+
+	//move( 0.5, 3);
+	removeTurtle("turtle");
+	ros::spin();
+
+}
+
 // Euclidian distance
 double getDistance(const double x1, const double y1, const double x2, const double y2) {
   return sqrt(pow((x1-x2),2) + pow(y1-y2, 2));
@@ -38,35 +67,6 @@ void removeTurtle(std::string turtlename) {
   reqk.name = turtlename.c_str();
   if (!kClient.call(reqk, respk))
      ROS_ERROR_STREAM("Error: Failed to kill " << reqk.name.c_str() << "\n");
-}
-
-//create global publisher
-ros::Publisher velocity_publisher;
-ros::Subscriber pose_subscriber;
-turtlesim::Pose turtlesim_pose;
-
-
-//move turtle straight
-void move(double speed, double dist);
-//rotate turtle
-// positive angle = counter clockwise
-void rotate (double ang_speed, double angl);
-void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
-
-int main (int argc, char **argv)
-{
-	ros::init(argc, argv, "turtle");
-	ros::NodeHandle n;
-	ros::Rate loop_rate(10);
-	
-	//initialize publisher
-	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
-	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
-
-	//move( 0.5, 3);
-	removeTurtle("turtle");
-	ros::spin();
-
 }
 
 void move(double speed, double dist)
