@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <ros/master.h>
 #include <boost/algorithm/string.hpp>
+#include <vector>
 
 using namespace std;
 
@@ -23,6 +24,12 @@ struct TurtlePose {
   turtlesim::Pose pose;
 };
 
+struct TurtleStruct {
+	turtlesim::Pose pose;
+	bool isX;
+	bool isT;
+};
+
 static ros::ServiceClient sClient;
 static ros::ServiceClient kClient;
 
@@ -32,8 +39,12 @@ void removeTurtle(std::string turtlename);
 void move(double speed, double dist);
 void rotate (double ang_speed, double angl);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
+void addToVector(turtlesim::Pose turtlesim_pose);
 //
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message);
+
+vector<TurtleStruct> spawnedTurtles;
+int vIndex = 0;
 
 int main (int argc, char **argv)
 {
@@ -47,6 +58,7 @@ int main (int argc, char **argv)
 	
 	//try to subscribe to Tturtles
 	T_pose_subscriber = n.subscribe("/T1/pose", 10, poseCB);
+	addToVector(turtlesim_pose);
 	
 	//pull topics from turtlesim
 	//each item in list stored as <string topic, string type>
@@ -162,9 +174,31 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 	turtlesim_pose.x = pose_message -> x;
 	turtlesim_pose.y = pose_message -> y;
 	turtlesim_pose.theta = pose_message -> theta;
-	ROS_INFO("X position of T1 turtle is %f .", turtlesim_pose.x);
-	ROS_INFO("Y position of T1 turtle is %f .", turtlesim_pose.y);
-	ROS_INFO("THETA position of T1 turtle is %f .", turtlesim_pose.theta); 
+	//ROS_INFO("X position of T1 turtle is %f .", turtlesim_pose.x);
+	//ROS_INFO("Y position of T1 turtle is %f .", turtlesim_pose.y);
+	//ROS_INFO("THETA position of T1 turtle is %f .", turtlesim_pose.theta); 
 }
+
+void addToVector(turtlesim::Pose turtlesim_pose)
+{
+	TurtleStruct temp;
+	temp.pose.x = turtlesim_pose.x;
+	temp.pose.y = turtlesim_pose.y;
+	temp.pose.theta = turtlesim_pose.theta;
+	
+	if (temp.pose.theta < 2) {
+		temp.isT == true;
+		temp.isX == false;
+	}
+	else {
+		temp.isT == false;
+		temp.isX == true;
+	}
+	
+	spawnedTurtles.push_back(temp);
+}
+
+
+
 
 
