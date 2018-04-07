@@ -39,7 +39,7 @@ void removeTurtle(std::string turtlename);
 void move(double speed, double dist);
 void rotate (double ang_speed, double angl);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
-void addToVector(turtlesim::Pose turtlesim_pose);
+void addToVector();
 //
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message);
 
@@ -57,9 +57,10 @@ int main (int argc, char **argv)
 	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
 	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
 	
+	addToVector();
 	//try to subscribe to Tturtles
 	T_pose_subscriber = n.subscribe("/T1/pose", 10, poseCB);
-	addToVector(turtlesim_pose);
+
 	
 	ROS_INFO("X position of T1 turtle is %f .", spawnedTurtles[0].pose.x);
 	ROS_INFO("Y position of T1 turtle is %f .", spawnedTurtles[0].pose.y);
@@ -164,20 +165,26 @@ void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 {
-	turtlesim_pose.x = pose_message -> x;
-	turtlesim_pose.y = pose_message -> y;
-	turtlesim_pose.theta = pose_message -> theta;
-	//ROS_INFO("X position of T1 turtle is %f .", turtlesim_pose.x);
-	//ROS_INFO("Y position of T1 turtle is %f .", turtlesim_pose.y);
-	//ROS_INFO("THETA position of T1 turtle is %f .", turtlesim_pose.theta);
-	x = turtlesim_pose.x;
-	y = turtlesim_pose.y;
-	t = turtlesim_pose.theta;
+	spawnedTurtles[0].pose.x = pose_message -> x;
+	spawnedTurtles[0].pose.y = pose_message -> y;
+	spawnedTurtles[0].pose.theta = pose_message -> theta;
+	//ROS_INFO("X position of T1 turtle is %f .", spawnedTurtles[0].pose.x);
+	//ROS_INFO("Y position of T1 turtle is %f .", spawnedTurtles[0].pose.y);
+	//ROS_INFO("THETA position of T1 turtle is %f .", spawnedTurtles[0].pose.theta);
+	
 	
 }
 
-void addToVector(turtlesim::Pose turtlesim_pose)
+void addToVector()
 {
+	TurtleStruct temp;
+	temp.pose.x = 0;
+	temp.pose.y = 0;
+	temp.pose.theta = 0;
+	
+	spawnedTurtles.push_back(temp);
+	
+	/*
 	TurtleStruct temp;
 	temp.pose.x = turtlesim_pose.x;
 	temp.pose.y = turtlesim_pose.y;
@@ -193,6 +200,7 @@ void addToVector(turtlesim::Pose turtlesim_pose)
 	}
 	
 	spawnedTurtles.push_back(temp);
+	*/
 }
 
 
