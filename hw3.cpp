@@ -7,8 +7,19 @@
 #include <stdlib.h>
 #include <ros/master.h>
 #include <boost/algorithm/string.hpp>
+#include <vector>
+#define NUM_T 7 // Number of T turtles
 
 using namespace std;
+int g_iterator = 1; // For tracking vector of pose positions
+bool calledback = false; // For tracking successful callback per turtle
+
+//publisher and subscriber
+ros::Publisher velocity_publisher;
+ros::Subscriber pose_subscriber;
+//test
+ros::Subscriber T_pose_subscriber;
+turtlesim::Pose turtlesim_pose;
 
 struct TurtlePose {
   std::string turtlename;
@@ -16,22 +27,28 @@ struct TurtlePose {
   turtlesim::Pose pose;
 };
 
-//static ros::ServiceClient sClient;
-static ros::ServiceClient kClient;
+struct TurtleStruct {
+	turtlesim::Pose pose;
+	bool isX;
+	bool isT;
+};
 
-//create global publisher
-ros::Publisher velocity_publisher;
-ros::Subscriber pose_subscriber;
-turtlesim::Pose turtlesim_pose;
+static ros::ServiceClient sClient;
+static ros::ServiceClient kClient;
 
 double getDistance(const double x1, const double y1, const double x2, const double y2);
 bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
 void removeTurtle(std::string turtlename);
 void move(double speed, double dist);
 void rotate (double ang_speed, double angl);
-void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
+void addToVector();
+//
+void poseCB(const turtlesim::Pose::ConstPtr & pose_message);
 
+vector<TurtleStruct> spawnedTurtles;
+int vIndex = 0;
+float x, y, t;
 
 int main (int argc, char **argv)
 {
@@ -42,11 +59,37 @@ int main (int argc, char **argv)
 	//initialize publisher
 	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
 	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
-
-	//move( 0.5, 3);
-	removeTurtle("/turtle1/");
+		
+	for(int i = 1; i < NUM_T + 1; i++){
+		string tempturtle = "/T0/pose";
+		tempturtle[2] = 48 + i;
+		printf("%s\n", tempturtle.c_str());
+	
+		addToVector();
+		//try to subscribe to Tturtles
+		T_pose_subscriber = n.subscribe(tempturtle.c_str(), 10, poseCB);
+		while(calledback = false){
+			ros::spinOnce();
+		}
+		calledback = false; // Reset
+	}
+	for(int i = 0; i < spawnedTurtles.size(); i++){
+		ROS_INFO("X position of T%d turtle is %f .", i+1, spawnedTurtles[i].pose.x);
+		ROS_INFO("Y position of T%d turtle is %f .", i+1, spawnedTurtles[i].pose.y);
+		ROS_INFO("THETA position of T%d turtle is %f .", i+1, spawnedTurtles[i].pose.theta);
+	}
+	
+	/*
+	//initialize publisher
+	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
+	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
+	
+	addToVector();
+	//try to subscribe to Tturtles
+	T_pose_subscriber = n.subscribe("/T1/pose", 10, poseCB);
+	*/
+	
 	ros::spin();
-
 }
 
 // Euclidian distance
@@ -131,34 +174,6 @@ void rotate (double ang_speed, double angl)
 
 }
 
-void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance){
-	
-	geometry_msgs::Twist vel_msg;
-
-	ros::Rate loop_rate(10);
-	do{
-		//linear velocity 
-		vel_msg.linear.x = 1.5*getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y);
-		vel_msg.linear.y = 0;
-		vel_msg.linear.z = 0;
-		//angular velocity
-		vel_msg.angular.x = 0;
-		vel_msg.angular.y = 0;
-		vel_msg.angular.z = 4*(atan2(goal_pose.y - turtlesim_pose.y, goal_pose.x - turtlesim_pose.x)-turtlesim_pose.theta);
-
-		velocity_publisher.publish(vel_msg);
-
-		ros::spinOnce();
-		loop_rate.sleep();
-
-	}while(getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y)>distance_tolerance);
-	cout<<"end move goal"<<endl;
-	vel_msg.linear.x = 0;
-	vel_msg.angular.z = 0;
-	velocity_publisher.publish(vel_msg);
-
-}
-
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 {
 	turtlesim_pose.x = pose_message -> x;
@@ -166,3 +181,45 @@ void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 	turtlesim_pose.theta = pose_message -> theta;
 }
 
+
+void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
+{
+	spawnedTurtles[g_iterator].pose.x = pose_message -> x;
+	spawnedTurtles[g_iterator].pose.y = pose_message -> y;
+	spawnedTurtles[g_iterator].pose.theta = pose_message -> theta;
+	g_iterator++;
+	calledback = true;
+	//ROS_INFO("X position of T1 turtle is %f .", spawnedTurtles[0].pose.x);
+	//ROS_INFO("Y position of T1 turtle is %f .", spawnedTurtles[0].pose.y);
+	//ROS_INFO("THETA position of T1 turtle is %f .", spawnedTurtles[0].pose.theta);
+	
+	
+}
+
+void addToVector()
+{
+	TurtleStruct temp;
+	temp.pose.x = 0;
+	temp.pose.y = 0;
+	temp.pose.theta = 0;
+	
+	spawnedTurtles.push_back(temp);
+	
+	/*
+	TurtleStruct temp;
+	temp.pose.x = turtlesim_pose.x;
+	temp.pose.y = turtlesim_pose.y;
+	temp.pose.theta = turtlesim_pose.theta;
+	
+	if (temp.pose.theta < 2) {
+		temp.isT == true;
+		temp.isX == false;
+	}
+	else {
+		temp.isT == false;
+		temp.isX == true;
+	}
+	
+	spawnedTurtles.push_back(temp);
+	*/
+}
