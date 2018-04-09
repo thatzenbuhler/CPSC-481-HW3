@@ -9,11 +9,13 @@
 #include <boost/algorithm/string.hpp>
 #include <vector>
 #define NUM_T 7 // Number of T turtles
+#define NUM_X 17 // Number of X turtles
 
 using namespace std;
 int g_iterator = 0; // For tracking vector of pose positions
 bool calledback = false; // For tracking successful callback per turtle
 string tempturtle = "/T1/pose"; // First name for searching for T turtles
+string Xtempturtle = "/X1/pose"; // First name for searching for T turtles
 
 //publisher and subscriber
 ros::Publisher velocity_publisher;
@@ -65,7 +67,18 @@ int main (int argc, char **argv)
 		T_pose_subscriber = n.subscribe(tempturtle.c_str(), 10, poseCB);
 		ros::spinOnce();
 	}
-	ROS_INFO("All friendly turtles found! Now moving to capture.");
+	ROS_INFO("All friendly turtles found! Now moving to enemy turtles.");
+	T_pose_subscriber.shutdown();
+	//g_iterator = 0;
+	
+	ROS_INFO("Scanning for enemy turtles...\n");
+	
+	while(ros::ok() && g_iterator < NUM_X){
+		//try to subscribe to X turtles
+		T_pose_subscriber = n.subscribe(Xtempturtle.c_str(), 10, poseCB);
+		ros::spinOnce();
+	}
+	ROS_INFO("All enemy turtles found! Now moving to capture.");
 	T_pose_subscriber.shutdown();
 	ros::spin();
 }
@@ -107,10 +120,35 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 	spawnedTurtles[g_iterator].pose.y = pose_message -> y;
 	spawnedTurtles[g_iterator].pose.theta = pose_message -> theta;
 	calledback = true;
-	ROS_INFO("X position of T%d turtle is %f .", g_iterator + 1, spawnedTurtles[g_iterator].pose.x);
-	ROS_INFO("Y position of T%d turtle is %f .\n", g_iterator + 1, spawnedTurtles[g_iterator].pose.y);
-	g_iterator++;
-	tempturtle[2] = 48 + g_iterator + 1;
+	if (g_iterator < 7)
+	{
+		ROS_INFO("X position of T%d turtle is %f .", g_iterator + 1, spawnedTurtles[g_iterator].pose.x);
+		ROS_INFO("Y position of T%d turtle is %f .\n", g_iterator + 1, spawnedTurtles[g_iterator].pose.y);
+		g_iterator++;
+		tempturtle[2] = 48 + g_iterator + 1;
+	}
+	else if ((g_iterator >= 7) && (g_iterator < 17))
+	{
+		ROS_INFO("X position of X%d turtle is %f .", g_iterator - 6, spawnedTurtles[g_iterator].pose.x);
+		ROS_INFO("Y position of X%d turtle is %f .\n", g_iterator - 6, spawnedTurtles[g_iterator].pose.y);
+		g_iterator++;
+		if (Xtempturtle[2] != 57)
+		{
+			Xtempturtle[2] = 48 + g_iterator - 6;
+		}
+		else
+		{
+			Xtempturtle = "/X10/pose";
+		}
+		
+	}
+	/*else
+	{
+		ROS_INFO("X position of X%d turtle is %f .", g_iterator - 6, spawnedTurtles[g_iterator].pose.x);
+		ROS_INFO("Y position of X%d turtle is %f .\n", g_iterator - 6, spawnedTurtles[g_iterator].pose.y);
+		//g_iterator++;
+		//Xtempturtle[2] = 48 + g_iterator - 6;
+	*/
 }
 
 void addToVector()
