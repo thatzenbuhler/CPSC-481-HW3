@@ -38,6 +38,7 @@ static ros::ServiceClient sClient;
 static ros::ServiceClient kClient;
 
 double getDistance(const double x1, const double y1, const double x2, const double y2);
+void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance);
 bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
 void removeTurtle(std::string turtlename);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
@@ -67,12 +68,60 @@ int main (int argc, char **argv)
 	}
 	ROS_INFO("All friendly turtles found! Now moving to capture.");
 	T_pose_subscriber.shutdown();
+	
+	// Start capturing turtles, closest one at a time
+	bool found[NUM_T] = {false};
+	bool allfound = false;
+	while(allfound = false){
+		double current_distance[NUM_T];
+		for(int i = 0; i < NUM_T; i++){
+			current_distance[i] = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[i].pose.x, spawnedTurtles[i].pose.y);
+		}
+		int closest = 0;
+		for(int i = 0; i < NUM_T - 1; i++){
+			if(current_distance[i+1] < current_distance[i] && found[i] == false){
+				closest = i + 1;
+			}
+		}
+		moveGoal(spawnedTurtles[closest].pose, 0.5);
+		found[closest] = true;
+		
+		// Check if all turtles found
+		allfound = true;
+		for(int i = 0; i < NUM_T; i++){
+			if(found[i] == false) allfound = false;
+		}
+	}
+	
 	ros::spin();
 }
 
 // Euclidian distance
 double getDistance(const double x1, const double y1, const double x2, const double y2) {
   return sqrt(pow((x1-x2),2) + pow(y1-y2, 2));
+}
+
+void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance){
+	geometry_msgs::Twist vel_msg;
+	ros::Rate loop_rate(100);
+	double E = 0.0;
+	do{
+		double Kv = 0.2;
+		double e = getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y);
+		vel_msg.linear.x = (Kv * e);
+		vel_msg.linear.y = 0;
+		vel_msg.linear.z = 0;
+		vel_msg.angular.x = 0;
+		vel_msg.angular.y = 0;
+		double Kw = 1;
+		vel_msg.angular.z = Kw*(atan2(goal_pose.y - turtlesim_pose.y, goal_pose.x - turtlesim_pose.x) - turtlesim_pose.theta);
+		velocity_publisher.publish(vel_msg);
+		ros::spinOnce();
+		loop_rate.sleep();
+	} while(getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y) > distance_tolerance);
+	vel_msg.linear.x = 0;
+	vel_msg.angular.z = 0;
+	velocity_publisher.publish(vel_msg);
 }
 
 // Check if contact is close
