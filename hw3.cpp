@@ -11,8 +11,9 @@
 #define NUM_T 7 // Number of T turtles
 
 using namespace std;
-int g_iterator = 1; // For tracking vector of pose positions
+int g_iterator = 0; // For tracking vector of pose positions
 bool calledback = false; // For tracking successful callback per turtle
+string tempturtle = "/T1/pose"; // First name for searching for T turtles
 
 //publisher and subscriber
 ros::Publisher velocity_publisher;
@@ -39,8 +40,6 @@ static ros::ServiceClient kClient;
 double getDistance(const double x1, const double y1, const double x2, const double y2);
 bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
 void removeTurtle(std::string turtlename);
-void move(double speed, double dist);
-void rotate (double ang_speed, double angl);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
 void addToVector();
 //
@@ -59,36 +58,15 @@ int main (int argc, char **argv)
 	//initialize publisher
 	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
 	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
-		
-	for(int i = 1; i < NUM_T + 1; i++){
-		string tempturtle = "/T0/pose";
-		tempturtle[2] = 48 + i;
-		printf("%s\n", tempturtle.c_str());
+	ROS_INFO("Scanning for friendly turtles...\n");
 	
-		addToVector();
+	while(ros::ok() && g_iterator < NUM_T){
 		//try to subscribe to Tturtles
 		T_pose_subscriber = n.subscribe(tempturtle.c_str(), 10, poseCB);
-		while(calledback = false){
-			ros::spinOnce();
-		}
-		calledback = false; // Reset
+		ros::spinOnce();
 	}
-	for(int i = 0; i < spawnedTurtles.size(); i++){
-		ROS_INFO("X position of T%d turtle is %f .", i+1, spawnedTurtles[i].pose.x);
-		ROS_INFO("Y position of T%d turtle is %f .", i+1, spawnedTurtles[i].pose.y);
-		ROS_INFO("THETA position of T%d turtle is %f .", i+1, spawnedTurtles[i].pose.theta);
-	}
-	
-	/*
-	//initialize publisher
-	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
-	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
-	
-	addToVector();
-	//try to subscribe to Tturtles
-	T_pose_subscriber = n.subscribe("/T1/pose", 10, poseCB);
-	*/
-	
+	ROS_INFO("All friendly turtles found! Now moving to capture.");
+	T_pose_subscriber.shutdown();
 	ros::spin();
 }
 
@@ -115,65 +93,6 @@ void removeTurtle(std::string turtlename) {
      ROS_ERROR_STREAM("Error: Failed to kill " << reqk.name.c_str() << "\n");
 }
 
-void move(double speed, double dist)
-{
-	geometry_msgs::Twist vel_msg;
-	double t0 = ros::Time::now().toSec();
-	double curr_dist = 0;
-	ros::Rate loop_rate(100);
-	
-	vel_msg.linear.x = abs(speed);
-	vel_msg.linear.y = 0;
-	vel_msg.linear.z = 0;
-	vel_msg.angular.x = 0;
-	vel_msg.angular.y = 0;
-	vel_msg.angular.z = 0;
-	
-	do {
-		velocity_publisher.publish(vel_msg);
-		double t1 = ros::Time::now().toSec();
-		curr_dist = speed * (t1 - t0);
-		ros::spinOnce();
-		loop_rate.sleep();
-	
-	}while (curr_dist < dist);
-	
-	//force turtle to stop moving once loop is complete
-	vel_msg.linear.x = 0;
-	velocity_publisher.publish(vel_msg);
-}
-
-//turtle does not move linearly, simply rotates
-void rotate (double ang_speed, double angl)
-{
-	geometry_msgs::Twist vel_msg;
-	double curr_ang = 0.0;	
-	double t0 = ros::Time::now().toSec();
-	ros::Rate loop_rate(10);
-
-	//no linear velocity
-	vel_msg.linear.x = 0;
-	vel_msg.linear.y = 0;
-	vel_msg.linear.z = 0;
-	vel_msg.angular.x = 0;
-	vel_msg.angular.y = 0;
-	vel_msg.angular.z = abs(ang_speed);
-	
-	do {
-		velocity_publisher.publish(vel_msg);
-		double t1 = ros::Time::now().toSec();
-		curr_ang = ang_speed * (t1 - t0);
-		ros::spinOnce();
-		loop_rate.sleep();
-	
-	}while (curr_ang < angl);
-	
-	//force turtle to stop moving once loop is complete
-	vel_msg.angular.z = 0;
-	velocity_publisher.publish(vel_msg);
-
-}
-
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 {
 	turtlesim_pose.x = pose_message -> x;
@@ -181,19 +100,17 @@ void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 	turtlesim_pose.theta = pose_message -> theta;
 }
 
-
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 {
+	addToVector();
 	spawnedTurtles[g_iterator].pose.x = pose_message -> x;
 	spawnedTurtles[g_iterator].pose.y = pose_message -> y;
 	spawnedTurtles[g_iterator].pose.theta = pose_message -> theta;
-	g_iterator++;
 	calledback = true;
-	//ROS_INFO("X position of T1 turtle is %f .", spawnedTurtles[0].pose.x);
-	//ROS_INFO("Y position of T1 turtle is %f .", spawnedTurtles[0].pose.y);
-	//ROS_INFO("THETA position of T1 turtle is %f .", spawnedTurtles[0].pose.theta);
-	
-	
+	ROS_INFO("X position of T%d turtle is %f .", g_iterator + 1, spawnedTurtles[g_iterator].pose.x);
+	ROS_INFO("Y position of T%d turtle is %f .\n", g_iterator + 1, spawnedTurtles[g_iterator].pose.y);
+	g_iterator++;
+	tempturtle[2] = 48 + g_iterator + 1;
 }
 
 void addToVector()
