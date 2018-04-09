@@ -41,22 +41,20 @@ static ros::ServiceClient kClient;
 
 double getDistance(const double x1, const double y1, const double x2, const double y2);
 void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance);
-bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
 void removeTurtle(std::string turtlename);
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message);
 void addToVector();
-//
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message);
+void sortByDistance();
 
 vector<TurtleStruct> spawnedTurtles;
-int vIndex = 0;
-float x, y, t;
 
 int main (int argc, char **argv)
 {
 	ros::init(argc, argv, "turtle");
 	ros::NodeHandle n;
 	ros::Rate loop_rate(10);
+	kClient = n.serviceClient<turtlesim::Kill>("kill");
 	
 	//initialize publisher
 	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
@@ -70,7 +68,6 @@ int main (int argc, char **argv)
 	}
 	ROS_INFO("All friendly turtles found! Now moving to enemy turtles.");
 	T_pose_subscriber.shutdown();
-	//g_iterator = 0;
 	
 	ROS_INFO("Scanning for enemy turtles...\n");
 	
@@ -82,30 +79,14 @@ int main (int argc, char **argv)
 	ROS_INFO("All enemy turtles found! Now moving to capture.");
 	T_pose_subscriber.shutdown();
 	
-	// Start capturing turtles, closest one at a time
-	bool found[NUM_T] = {false};
-	bool allfound = false;
-	while(allfound = false){
-		double current_distance[NUM_T];
-		for(int i = 0; i < NUM_T; i++){
-			current_distance[i] = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[i].pose.x, spawnedTurtles[i].pose.y);
-		}
-		int closest = 0;
-		for(int i = 0; i < NUM_T - 1; i++){
-			if(current_distance[i+1] < current_distance[i] && found[i] == false){
-				closest = i + 1;
-			}
-		}
-		moveGoal(spawnedTurtles[closest].pose, 0.5);
-		found[closest] = true;
-		
-		// Check if all turtles found
-		allfound = true;
-		for(int i = 0; i < NUM_T; i++){
-			if(found[i] == false) allfound = false;
-		}
+	// Start capturing turtles
+	for(int i = 0; i < NUM_T; i++){
+		sortByDistance();
+		moveGoal(spawnedTurtles[i].pose, 0.5);
+		string temp = "/T0/pose";
+		temp[2] = 49 + i;
+		removeTurtle(temp);
 	}
-	
 	ros::spin();
 }
 
@@ -132,17 +113,10 @@ void moveGoal(turtlesim::Pose goal_pose, double distance_tolerance){
 		ros::spinOnce();
 		loop_rate.sleep();
 	} while(getDistance(turtlesim_pose.x, turtlesim_pose.y, goal_pose.x, goal_pose.y) > distance_tolerance);
+	
 	vel_msg.linear.x = 0;
 	vel_msg.angular.z = 0;
 	velocity_publisher.publish(vel_msg);
-}
-
-// Check if contact is close
-bool isTooClose(double x1, double y1, double x2, double y2, double threshhold) {
-  if (getDistance(x1, y1, x2, y2) <= threshhold)
-     return true;
-  else
-     return false;
 }
 
 // Remove captured turtle
@@ -150,14 +124,14 @@ void removeTurtle(std::string turtlename) {
   turtlesim::Kill::Request reqk;
   turtlesim::Kill::Response respk;
 
-  reqk.name = turtlename.c_str();
+  reqk.name = turtlename;
   if (!kClient.call(reqk, respk))
      ROS_ERROR_STREAM("Error: Failed to kill " << reqk.name.c_str() << "\n");
 }
 
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 {
-	turtlesim_pose.x = pose_message -> x;
+	turtlesim_pose.x = - (pose_message -> x);
 	turtlesim_pose.y = pose_message -> y;
 	turtlesim_pose.theta = pose_message -> theta;
 }
@@ -189,15 +163,7 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 		{
 			Xtempturtle = "/X10/pose";
 		}
-		
 	}
-	/*else
-	{
-		ROS_INFO("X position of X%d turtle is %f .", g_iterator - 6, spawnedTurtles[g_iterator].pose.x);
-		ROS_INFO("Y position of X%d turtle is %f .\n", g_iterator - 6, spawnedTurtles[g_iterator].pose.y);
-		//g_iterator++;
-		//Xtempturtle[2] = 48 + g_iterator - 6;
-	*/
 }
 
 void addToVector()
@@ -206,24 +172,21 @@ void addToVector()
 	temp.pose.x = 0;
 	temp.pose.y = 0;
 	temp.pose.theta = 0;
-	
 	spawnedTurtles.push_back(temp);
-	
-	/*
-	TurtleStruct temp;
-	temp.pose.x = turtlesim_pose.x;
-	temp.pose.y = turtlesim_pose.y;
-	temp.pose.theta = turtlesim_pose.theta;
-	
-	if (temp.pose.theta < 2) {
-		temp.isT == true;
-		temp.isX == false;
-	}
-	else {
-		temp.isT == false;
-		temp.isX == true;
-	}
-	
-	spawnedTurtles.push_back(temp);
-	*/
 }
+
+void sortByDistance(){
+	bool moved = true;
+	while(moved == true){
+		moved = false;
+		for(int i = 0; i < NUM_T - 1; i++){
+			double a = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[i].pose.x, spawnedTurtles[i].pose.y);
+			double b = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[i+1].pose.x, spawnedTurtles[i+1].pose.y);
+			if(a > b){
+				swap(spawnedTurtles[i], spawnedTurtles[i+1]);
+				moved = true;
+			}
+		}
+	}
+}
+
