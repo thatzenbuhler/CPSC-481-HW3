@@ -50,10 +50,10 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message);
 //new version of move goal
 void goal(turtlesim::Pose gp, double dt);
 //void rotate (TurtleStruct gp);
-void rotate (double angl, bool cw, bool flip);
+void rotate (double angl, bool cw);
 void move(double dist);
 double d2r(double dir);
-double setDesOr(double dar, bool cw, bool flip);
+double setDesOr(double dar, bool cw);
 
 vector<TurtleStruct> spawnedTurtles;
 int vIndex = 0;
@@ -90,118 +90,93 @@ int main (int argc, char **argv)
 	}
 	ROS_INFO("All enemy turtles found! Now moving to capture.");
 	T_pose_subscriber.shutdown();
+
 	
-	// Start capturing turtles, closest one at a time
-	/*
-	bool found[NUM_T] = {false};
-	bool allfound = false;
-	while(allfound = false){
-		double current_distance[NUM_T];
-		for(int i = 0; i < NUM_T; i++){
-			current_distance[i] = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[i].pose.x, spawnedTurtles[i].pose.y);
-		}
-		int closest = 0;
-		for(int i = 0; i < NUM_T - 1; i++){
-			if(current_distance[i+1] < current_distance[i] && found[i] == false){
-				closest = i + 1;
-			}
-		}
-		moveGoal(spawnedTurtles[closest].pose, 0.5);
-		found[closest] = true;
-		
-		//test my rot func
-		rotate (spawnedTurtles[closest]);
-		ROS_INFO("Rotated turtle");
-		
-		// Check if all turtles found
-		allfound = true;
-		for(int i = 0; i < NUM_T; i++){
-			if(found[i] == false) allfound = false;
-		}
-	}
-	
-	*/
-	double near = 100;
-	int index = 0;
-	int count = 0;
-	
-	while (count < NUM_T)
+	for (int i = 1; i <= NUM_T; i++)
 	{
-		double dist;
-		dist = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[count].pose.x, spawnedTurtles[count].pose.y);
-		if (dist <= near)
+		double near = 100;
+		int index = 0;
+		int count = 0;
+		
+		while (count < NUM_T)
 		{
-			near = dist;
-			index = count;
+			double dist;
+			dist = getDistance(turtlesim_pose.x, turtlesim_pose.y, spawnedTurtles[count].pose.x, spawnedTurtles[count].pose.y);
+			if (dist <= near)
+			{
+				near = dist;
+				index = count;
+			}
+		
+			++count;
+		}
+	
+		ROS_INFO("The closest turtle is T%i at X:%f   Y:%f \n", index, spawnedTurtles[index].pose.x, spawnedTurtles[index].pose.y);
+	
+		float tX, tY;
+	
+		tX = spawnedTurtles[index].pose.x - turtlesim_pose.x;
+		tY = spawnedTurtles[index].pose.y - turtlesim_pose.y;
+	
+		double angl = abs(atan2(tY, tX));
+		ROS_INFO("The angle to rotate is %f", angl * 180);
+	
+		if (tY <= 0)
+			cw = true;
+		else
+			cw = false;
+		
+	
+		//get rid of d2r
+		setDesOr(angl, cw);
+		move (near);
+		
+		//take T turtle out of vector
+		spawnedTurtles.erase(spawnedTurtles.begin() + index);
+		
+		/*
+		vector<TurtleStruct> temp;
+		for (int j = 0; j < NUM_T - i + 1; j++)
+		{
+			if (j != index)
+			{
+				temp.push_back(spawnedTurtles[j]);
+			}	
 		}
 		
-		++count;
-	}
-	
-	ROS_INFO("The closest turtle is T%i at X:%f   Y:%f \n", index, spawnedTurtles[index].pose.x, spawnedTurtles[index].pose.y);
-	
-	float tX, tY;
-	
-	tX = spawnedTurtles[index].pose.x - turtlesim_pose.x;
-	tY = spawnedTurtles[index].pose.y - turtlesim_pose.y;
-	
-	double angl = abs(atan2(tY, tX));
-	ROS_INFO("The angle to rotate is %f", angl * 180);
-	bool flip;
-	
-	/*
-	if ((tX >= 0) && (tY >= 0))
-	{
-		flip = false;
-		cw = false;
-	}
-	else if ((tX >= 0) && (tY < 0))
-	{
-		flip = false;
-		cw = true;
-	}
-	else if ((tX < 0) && (tY < 0))
-	{
-		flip = true;
-		cw = false;
-	}
-	else if ((tX < 0) && (tY >= 0))
-	{
-		flip = true;
-		cw = true;
-	}
-	
-	if(flip)
-	{
-		ROS_INFO("Robot will flip");
-	}
-	*/
-	
-	if (tY <= 0)
-		cw = true;
-	else
-		cw = false;
+		spawnedTurtles.clear();
 		
-	flip = false;
+		for (int j = 0; j < NUM_T - i; j++)
+		{
+			if (j != index)
+			{
+				spawnedTurtles.push_back(temp[j]);
+			}	
+		} 
+		
+		temp.clear();
+		*/
+		
 	
-	//get rid of d2r
-	setDesOr(angl, cw, flip);
-	move (near);
-	
-	ROS_INFO("The location of turtle1 is X:%f   Y:%f   T:%f \n", turtlesim_pose.x, turtlesim_pose.y, turtlesim_pose.theta);
-	
-	
+		ROS_INFO("The location of turtle1 is X:%f   Y:%f   T:%f \n", turtlesim_pose.x, turtlesim_pose.y, turtlesim_pose.theta);
+		
+		//system("rosservice call /turtle1/teleport_absolute {\"x: xx, y: yy, theta: 0.0\"}");
+		//string killTurtle;
+		//killTurtle = "T" + index;
+		//ROS_INFO("Killing %s", killTurtle);
+		//removeTurtle(killTurtle);
+	}
 
 	ros::spin();
 }
 
 
-double setDesOr(double dar, bool cw, bool flip)
+double setDesOr(double dar, bool cw)
 {
 	double rar = dar - turtlesim_pose.theta;
 	ROS_INFO("The relative angle is %f", rar);
 	//cw = ((rar < 0)? true:false);
-	rotate(abs(rar), cw, flip);
+	rotate(abs(rar), cw);
 }
 
 double d2r (double dir)
@@ -209,7 +184,7 @@ double d2r (double dir)
 	return (dir * 3.14159265359) / 180;
 }
 
-void rotate (double angl, bool cw, bool flip)
+void rotate (double angl, bool cw)
 {
 	geometry_msgs::Twist vel_msg;
 	double curr_ang = 0.0;	
@@ -232,11 +207,6 @@ void rotate (double angl, bool cw, bool flip)
 	else
 	{
 		vel_msg.angular.z = abs(ang_speed);
-	}
-	
-	if(flip)
-	{
-		angl += 3.14159;
 	}
 
 	
@@ -298,11 +268,11 @@ bool isTooClose(double x1, double y1, double x2, double y2, double threshhold) {
 }
 
 // Remove captured turtle
-void removeTurtle(std::string turtlename) {
+void removeTurtle(string turtlename) {
   turtlesim::Kill::Request reqk;
   turtlesim::Kill::Response respk;
 
-  reqk.name = turtlename.c_str();
+  reqk.name = turtlename;
   if (!kClient.call(reqk, respk))
      ROS_ERROR_STREAM("Error: Failed to kill " << reqk.name.c_str() << "\n");
 }
