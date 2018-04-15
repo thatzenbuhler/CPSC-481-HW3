@@ -18,27 +18,21 @@ bool calledback = false; // turtle subs
 string tempturtle = "/T1/pose"; // First name for searching for T turtles
 string Xtempturtle = "/X1/pose"; // First name for searching for T turtles
 
-//publisher and subscriber
+// Publisher and subscriber for turtle1
 ros::Publisher velocity_publisher;
 ros::Subscriber pose_subscriber;
-//test
+// Subscriber for finding turtles
 ros::Subscriber T_pose_subscriber;
 turtlesim::Pose turtlesim_pose;
 
-struct TurtlePose {
-  std::string turtlename;
-  std::string topicname;
-  turtlesim::Pose pose;
-};
-
 struct TurtleStruct {
 	turtlesim::Pose pose;
-	bool isX;
-	bool isT;
+	int id; // For capturing the turtle after vector is rearranged
+	//bool isX;
+	//bool isT;
 };
 
-static ros::ServiceClient sClient;
-static ros::ServiceClient kClient;
+static ros::ServiceClient kClient; // For capturing turtles
 
 double getDistance(const double x1, const double y1, const double x2, const double y2);
 bool isTooClose(double x1, double y1, double x2, double y2, double threshhold);
@@ -48,13 +42,10 @@ void addToVector();
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message);
 void rotate (double angl, bool cw);
 void move(double dist);
-double d2r(double dir);
 double setDesOr(double dar, bool cw);
 
 vector<TurtleStruct> spawnedTurtles_T;
 vector<TurtleStruct> spawnedTurtles_X;
-int vIndex = 0;
-float x, y, t;
 
 int main (int argc, char **argv)
 {
@@ -123,18 +114,18 @@ int main (int argc, char **argv)
 			cw = true;
 		else
 			cw = false;
-		
 	
-		//get rid of d2r
 		setDesOr(angl, cw);
 		move (near);
 		
+		if(isTooClose(spawnedTurtles_T[index].pose.x, spawnedTurtles_T[index].pose.y, turtlesim_pose.x, turtlesim_pose.y, 0.5)){
+			string killT = "T0";
+			killT[1] = 49 + (spawnedTurtles_T[index].id);
+			removeTurtle(killT.c_str());
+		}
+		
 		//take T turtle out of vector
 		spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
-		
-		string killT = "T0";
-		killT[1] = 48 + (index + i - 1);
-		removeTurtle(killT.c_str());
 	
 		ROS_INFO("The location of turtle1 is X:%f   Y:%f   T:%f \n", turtlesim_pose.x, turtlesim_pose.y, turtlesim_pose.theta);
 	
@@ -152,11 +143,6 @@ double setDesOr(double dar, bool cw)
 		ROS_INFO("turtle will move counter-clockwise\n");
 	//cw = ((rar < 0)? true:false);
 	rotate(abs(rar), cw);
-}
-
-double d2r (double dir)
-{
-	return (dir * PI) / 180;
 }
 
 void rotate (double angl, bool cw)
@@ -272,6 +258,7 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 		spawnedTurtles_T[g_iterator].pose.x = pose_message -> x;
 		spawnedTurtles_T[g_iterator].pose.y = pose_message -> y;
 		spawnedTurtles_T[g_iterator].pose.theta = pose_message -> theta;
+		spawnedTurtles_T[g_iterator].id = g_iterator;
 		calledback = true;
 		
 		ROS_INFO("X position of T%d turtle is %f .", g_iterator + 1, spawnedTurtles_T[g_iterator].pose.x);
@@ -285,6 +272,7 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 		spawnedTurtles_X[g_iterator - 7].pose.x = pose_message -> x;
 		spawnedTurtles_X[g_iterator - 7].pose.y = pose_message -> y;
 		spawnedTurtles_X[g_iterator - 7].pose.theta = pose_message -> theta;
+		spawnedTurtles_X[g_iterator - 7].id = g_iterator;
 		calledback = true;
 		
 		ROS_INFO("X position of X%d turtle is %f .", g_iterator - 6, spawnedTurtles_X[g_iterator - 7].pose.x);
