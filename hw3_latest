@@ -52,7 +52,7 @@ int main (int argc, char **argv)
 	ros::init(argc, argv, "turtle");
 	ros::NodeHandle n;
 	//was 10
-	ros::Rate loop_rate(0.5);
+	ros::Rate loop_rate(1);
 	kClient = n.serviceClient<turtlesim::Kill>("kill");
 	bool cw;
 	double zero = 0.0;
@@ -123,6 +123,8 @@ int main (int argc, char **argv)
 			killT[1] = 49 + (spawnedTurtles_T[index].id);
 			removeTurtle(killT.c_str());
 		}
+		
+		setDesOr(- angl, not cw); // reset angle to 0
 		
 		//take T turtle out of vector
 		spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
