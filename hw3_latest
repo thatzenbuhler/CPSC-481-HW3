@@ -46,6 +46,7 @@ double setDesOr(double dar, bool cw);
 
 vector<TurtleStruct> spawnedTurtles_T;
 vector<TurtleStruct> spawnedTurtles_X;
+double eucDist = 0.0;
 
 int main (int argc, char **argv)
 {
@@ -110,6 +111,7 @@ int main (int argc, char **argv)
 		double angl = abs(atan2(tY, tX));
 		ROS_INFO("The angle to rotate is %f", angl * 180 / PI);
 	
+		/*
 		if (tY <= 0)
 		{
 			cw = true;
@@ -121,13 +123,37 @@ int main (int argc, char **argv)
 	
 		setDesOr(angl, cw);
 		move (near);
+		*/
 		
+		//test
+		if (tY <= 0)
+		{
+			cw = true;
+		}
+		else
+		{ 
+			cw = false;
+		}
+		
+		if(tY>=0 && tX >=0)
+		{
+			setDesOr(angl, cw);
+			move (near);
+		}
+		else 
+		{
+			rotate(angl, cw);
+			move (near);
+
+
 		if(isTooClose(spawnedTurtles_T[index].pose.x, spawnedTurtles_T[index].pose.y, turtlesim_pose.x, turtlesim_pose.y, 0.5)){
 			string killT = "T0";
 			killT[1] = 49 + (spawnedTurtles_T[index].id);
 			removeTurtle(killT.c_str());
 		}
-		
+		else
+			i--;
+	
 		
 		rotate(angl, not cw); // reset angle to 0
 		angl = turtlesim_pose.theta;
@@ -141,7 +167,14 @@ int main (int argc, char **argv)
 	
 		ROS_INFO("The location of turtle1 is X:%f   Y:%f   T:%f \n", turtlesim_pose.x, turtlesim_pose.y, turtlesim_pose.theta);
 	
+		eucDist += near;
+		
+		if (pose_subscriber == NULL)
+			break;
 	}
+	
+	
+	
 	ros::spin();
 }
 
@@ -183,14 +216,15 @@ void rotate (double angl, bool cw)
 	}
 
 	
+
 	do {
 		velocity_publisher.publish(vel_msg);
 		double t1 = ros::Time::now().toSec();
 		curr_ang = ang_speed * (t1 - t0);
 		ros::spinOnce();
 		loop_rate.sleep();
-	
-	}while (curr_ang < angl - 0.10472);
+	//0.10472
+	}while (curr_ang < angl - 0.105);
 	
 	//force turtle to stop moving once loop is complete
 	vel_msg.angular.z = 0;
