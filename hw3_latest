@@ -111,9 +111,13 @@ int main (int argc, char **argv)
 		ROS_INFO("The angle to rotate is %f", angl * 180 / PI);
 	
 		if (tY <= 0)
+		{
 			cw = true;
+		}
 		else
+		{ 
 			cw = false;
+		}
 	
 		setDesOr(angl, cw);
 		move (near);
@@ -124,7 +128,13 @@ int main (int argc, char **argv)
 			removeTurtle(killT.c_str());
 		}
 		
-		setDesOr(- angl, not cw); // reset angle to 0
+		
+		rotate(angl, not cw); // reset angle to 0
+		angl = turtlesim_pose.theta;
+		rotate(angl, not cw); // reset angle to 0
+		ROS_INFO("current theta of turtle1 is %f", turtlesim_pose.theta * 180 / PI);
+		
+		//system("rosservice call /turtle1/teleport_relative 1 0");
 		
 		//take T turtle out of vector
 		spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
@@ -180,7 +190,7 @@ void rotate (double angl, bool cw)
 		ros::spinOnce();
 		loop_rate.sleep();
 	
-	}while (curr_ang < angl);
+	}while (curr_ang < angl - 0.10472);
 	
 	//force turtle to stop moving once loop is complete
 	vel_msg.angular.z = 0;
