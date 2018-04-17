@@ -28,8 +28,6 @@ turtlesim::Pose turtlesim_pose;
 struct TurtleStruct {
 	turtlesim::Pose pose;
 	int id; // For capturing the turtle after vector is rearranged
-	//bool isX;
-	//bool isT;
 };
 
 static ros::ServiceClient kClient; // For capturing turtles
@@ -47,6 +45,7 @@ void checkTurtle1();
 
 vector<TurtleStruct> spawnedTurtles_T;
 vector<TurtleStruct> spawnedTurtles_X;
+double eucDist = 0.0;
 
 int main (int argc, char **argv)
 {
@@ -56,7 +55,6 @@ int main (int argc, char **argv)
 	ros::Rate loop_rate(1);
 	kClient = n.serviceClient<turtlesim::Kill>("kill");
 	bool cw;
-	double zero = 0.0;
 	
 	//initialize publisher
 	velocity_publisher = n.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
@@ -108,36 +106,97 @@ int main (int argc, char **argv)
 		tX = spawnedTurtles_T[index].pose.x - turtlesim_pose.x;
 		tY = spawnedTurtles_T[index].pose.y - turtlesim_pose.y;
 	
-		double angl = fabs(atan2(tY, tX));
+		double angl = abs(atan2(tY, tX));
 		ROS_INFO("The angle to rotate is %f", angl * 180 / PI);
+		
+		//test
+		//near /=2;
 	
 		if (tY <= 0)
+		{
 			cw = true;
+		}
 		else
+		{ 
 			cw = false;
-	
-		setDesOr(angl, cw);
-		move (near);
+		}
 		
+		if(tY>=0 && tX >=0)
+		{
+			setDesOr(angl, cw);
+			move (near);
+		}
+		else 
+		{
+			rotate(angl, cw);
+			move (near);
+		}
+
+
 		if(isTooClose(spawnedTurtles_T[index].pose.x, spawnedTurtles_T[index].pose.y, turtlesim_pose.x, turtlesim_pose.y, 0.5)){
 			string killT = "T0";
 			killT[1] = 49 + (spawnedTurtles_T[index].id);
 			removeTurtle(killT.c_str());
+			spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
 		}
 		else
 			i--;
+	
 		
-		setDesOr(-angl, -cw); // reset angle to 0
+		rotate(angl, not cw); // reset angle to 0
+		angl = turtlesim_pose.theta;
+		rotate(angl, not cw); // reset angle to 0
+		ROS_INFO("current theta of turtle1 is %f", turtlesim_pose.theta * 180 / PI);
+		
+		//system("rosservice call /turtle1/teleport_relative 1 0");
 		
 		//take T turtle out of vector
-		spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
+		//spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
 	
 		ROS_INFO("The location of turtle1 is X:%f   Y:%f   T:%f \n", turtlesim_pose.x, turtlesim_pose.y, turtlesim_pose.theta);
+	
+	
+	
+	
+		eucDist += near;
+		checkTurtle1();
 		
-		checkTurtle1(); // Check if Turtle1 is stil alive
 	}
+	
+	
+	/*************************************************************
+	As soon as the mission is completed, display the names of all the T turtles, the total Euclidean
+	distance traveled by the turtle1, average velocity, total time taken, and total distance traveled that
+	is calculated by ∑velocity*∆time on the screen, and stop turtle1 at current position.
+	*************************************************************/
+	//turtle names already printed
+	
+	ROS_INFO("Total Euclidean Distance traveled: %f", eucDist);
+	ROS_INFO("Average velocity is 1 radians/second");
+	
 	ros::spin();
 }
+
+void checkTurtle1(){
+	bool found = false;
+	ros::master::V_TopicInfo alltopics;
+	//get all topic names
+	ros::master::getTopics(alltopics);
+
+	for (int i=0; i<alltopics.size(); i++) {
+		if(alltopics[i].name == "/turtle1/pose")
+			found = true;
+	};
+	if (found)
+		return;
+	else{
+		ROS_INFO("Turtle 1 Destroyed! Mission Failed.");
+		// Print total distance / time etc
+		ros::shutdown();
+		exit(1);
+	}
+}
+
 
 double setDesOr(double dar, bool cw)
 {
@@ -177,14 +236,15 @@ void rotate (double angl, bool cw)
 	}
 
 	
+
 	do {
 		velocity_publisher.publish(vel_msg);
 		double t1 = ros::Time::now().toSec();
 		curr_ang = ang_speed * (t1 - t0);
 		ros::spinOnce();
 		loop_rate.sleep();
-	
-	}while (curr_ang < angl);
+	//0.10472
+	}while (curr_ang < angl - 0.105);
 	
 	//force turtle to stop moving once loop is complete
 	vel_msg.angular.z = 0;
@@ -211,10 +271,25 @@ void move(double dist)
 	
 	do {
 		velocity_publisher.publish(vel_msg);
+		bool jump = false;
+		for (int b = 0; b < 10 && jump == false; b++)
+		{
+			jump = isTooClose(spawnedTurtles_X[b].pose.x, spawnedTurtles_X[b].pose.y, turtlesim_pose.x, turtlesim_pose.y, .75);
+			//ROS_INFO("got here");
+		}
+		
+		if(jump)
+		{
+			system("rosservice call /turtle1/teleport_relative 1.1 0");
+			dist -= 1.1;
+		}
+
 		double t1 = ros::Time::now().toSec();
 		curr_dist = speed * (t1 - t0);
+		//ROS_INFO("distance %f", curr_dist);
 		ros::spinOnce();
 		loop_rate.sleep();
+		
 	
 	}while (curr_dist < dist);
 	
@@ -312,24 +387,3 @@ void addToVector()
 		spawnedTurtles_X.push_back(temp);
 	}	
 }
-
-void checkTurtle1(){
-	bool found = false;
-	ros::master::V_TopicInfo alltopics;
-	//get all topic names
-	ros::master::getTopics(alltopics);
-
-	for (int i=0; i<alltopics.size(); i++) {
-		if(alltopics[i].name == "/turtle1/pose")
-			found = true;
-	};
-	if (found)
-		return;
-	else{
-		ROS_INFO("Turtle 1 Destroyed! Mission Failed.");
-		// Print total distance / time etc
-		ros::shutdown();
-		exit(1);
-	}
-}
-
