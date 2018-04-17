@@ -13,7 +13,7 @@ Inside of the “rosws” directory, create a folder named “src”
 This can be done using the commands in the terminal “cd rosws” and then “mkdir src”
 
 Step 3:
-Inside the “src” folder, create a package called “hw2”
+Inside the “src” folder, create a package called “hw3”
 This can be done using the commands in the terminal “cd src” then “catkin_create_pkg hw3”
 This will generate 2 files inside of the “hw3” folder called “CMakeLists.txt” and “package.xml”
 
