@@ -1,3 +1,8 @@
+// Tyler Hatzenbuhler
+// Anette Ulrichsen
+// CS 481-02 Homework 3
+// 4/16/2018
+
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
 #include "turtlesim/Pose.h"
@@ -43,6 +48,7 @@ void move(double dist);
 double setDesOr(double dar, bool cw);
 void checkTurtle1();
 
+//vectors to hold location of found turtles
 vector<TurtleStruct> spawnedTurtles_T;
 vector<TurtleStruct> spawnedTurtles_X;
 double eucDist = 0.0;
@@ -61,6 +67,7 @@ int main (int argc, char **argv)
 	pose_subscriber = n.subscribe("/turtle1/pose", 10, poseCallback);
 	ROS_INFO("Scanning for friendly turtles...\n");
 	
+	//find all T turtles and add them to vector
 	for(int i = 0; i < NUM_T; i++){
 		T_pose_subscriber = n.subscribe(tempturtle.c_str(), 10, poseCB);
 		while(calledback == false){
@@ -71,6 +78,7 @@ int main (int argc, char **argv)
 	}
 	ROS_INFO("All friendly turtles found! Now moving to enemy turtles.");
 	
+	//find all X turtles and add them to vector
 	for(int i = NUM_T; i < NUM_X; i++){
 		T_pose_subscriber = n.subscribe(Xtempturtle.c_str(), 10, poseCB);
 		while(calledback == false){
@@ -81,8 +89,10 @@ int main (int argc, char **argv)
 	}
 	ROS_INFO("All enemy turtles found! Now moving to capture.");
 	
+	//time turtle movements
 	double tStart = ros::Time::now().toSec();
 	
+	//Find closest T turtle
 	for (int i = 1; i <= NUM_T; i++)
 	{
 		double near = 100;
@@ -105,7 +115,8 @@ int main (int argc, char **argv)
 	
 		tX = spawnedTurtles_T[index].pose.x - turtlesim_pose.x;
 		tY = spawnedTurtles_T[index].pose.y - turtlesim_pose.y;
-	
+		
+		//calculate distance from turtle1 to T turtle
 		double angl = abs(atan2(tY, tX));
 
 		if (tY <= 0)
@@ -117,6 +128,7 @@ int main (int argc, char **argv)
 			cw = false;
 		}
 		
+		//rotate and move turtle1
 		if(tY>=0 && tX >=0)
 		{
 			setDesOr(angl, cw);
@@ -128,7 +140,7 @@ int main (int argc, char **argv)
 			move (near);
 		}
 
-
+		//kill T turtle when in proximity and remove T turtle from vector
 		if(isTooClose(spawnedTurtles_T[index].pose.x, spawnedTurtles_T[index].pose.y, turtlesim_pose.x, turtlesim_pose.y, 0.5)){
 			string killT = "T0";
 			killT[1] = 49 + (spawnedTurtles_T[index].id);
@@ -139,22 +151,20 @@ int main (int argc, char **argv)
 			i--;
 	
 		
+		//assists in the rotation process
 		rotate(angl, not cw); // reset angle to 0
 		angl = turtlesim_pose.theta;
 		rotate(angl, not cw); // reset angle to 0
 	
 		eucDist += near;
+		//check if turtle1 was killed and end program
 		checkTurtle1();
 		
 	}
 	double tEnd = ros::Time::now().toSec();
 	double duration = tEnd - tStart;
-	/*************************************************************
-	As soon as the mission is completed, display the names of all the T turtles, the total Euclidean
-	distance traveled by the turtle1, average velocity, total time taken, and total distance traveled that
-	is calculated by ∑velocity*∆time on the screen, and stop turtle1 at current position.
-	*************************************************************/
-	//turtle names already printed
+	
+	//print project requirements
 	ROS_INFO("Hooray! All T turtles successfully captured!! \n");
 	ROS_INFO("Total Euclidean Distance traveled: %f", eucDist);
 	ROS_INFO("Average velocity is 1 units/second");
@@ -164,6 +174,7 @@ int main (int argc, char **argv)
 	ros::spin();
 }
 
+//check if turtle1 is killed and end program
 void checkTurtle1(){
 	bool found = false;
 	ros::master::V_TopicInfo alltopics;
@@ -183,13 +194,14 @@ void checkTurtle1(){
 	}
 }
 
-
+//set desired orientation of turtle1
 double setDesOr(double dar, bool cw)
 {
 	double rar = dar - turtlesim_pose.theta;
 	rotate(abs(rar), cw);
 }
 
+//rotate turtle1 towards closest T turtle
 void rotate (double angl, bool cw)
 {
 	geometry_msgs::Twist vel_msg;
@@ -234,6 +246,7 @@ void rotate (double angl, bool cw)
 
 }
 
+//move turtle1 set distance
 void move(double dist)
 {
 	geometry_msgs::Twist vel_msg;
@@ -301,6 +314,7 @@ void removeTurtle(string turtlename) {
      ROS_ERROR_STREAM("Error: Failed to kill " << reqk.name.c_str() << "\n");
 }
 
+//pose call back for turtle1
 void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 {
 	turtlesim_pose.x = pose_message -> x;
@@ -308,6 +322,7 @@ void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 	turtlesim_pose.theta = pose_message -> theta;
 }
 
+//pose call back for spawned turtles
 void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 {
 
@@ -351,6 +366,7 @@ void poseCB(const turtlesim::Pose::ConstPtr & pose_message)
 	}
 }
 
+//generate vector members
 void addToVector()
 {
 	TurtleStruct temp;
