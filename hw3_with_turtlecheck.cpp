@@ -81,6 +81,8 @@ int main (int argc, char **argv)
 	}
 	ROS_INFO("All enemy turtles found! Now moving to capture.");
 	
+	double tStart = ros::Time::now().toSec();
+	
 	for (int i = 1; i <= NUM_T; i++)
 	{
 		double near = 100;
@@ -99,19 +101,13 @@ int main (int argc, char **argv)
 			++count;
 		}
 	
-		ROS_INFO("The closest turtle is T%i at X:%f   Y:%f \n", (index + i - 1), spawnedTurtles_T[index].pose.x, spawnedTurtles_T[index].pose.y);
-	
 		float tX, tY;
 	
 		tX = spawnedTurtles_T[index].pose.x - turtlesim_pose.x;
 		tY = spawnedTurtles_T[index].pose.y - turtlesim_pose.y;
 	
 		double angl = abs(atan2(tY, tX));
-		ROS_INFO("The angle to rotate is %f", angl * 180 / PI);
-		
-		//test
-		//near /=2;
-	
+
 		if (tY <= 0)
 		{
 			cw = true;
@@ -146,33 +142,24 @@ int main (int argc, char **argv)
 		rotate(angl, not cw); // reset angle to 0
 		angl = turtlesim_pose.theta;
 		rotate(angl, not cw); // reset angle to 0
-		ROS_INFO("current theta of turtle1 is %f", turtlesim_pose.theta * 180 / PI);
-		
-		//system("rosservice call /turtle1/teleport_relative 1 0");
-		
-		//take T turtle out of vector
-		//spawnedTurtles_T.erase(spawnedTurtles_T.begin() + index);
-	
-		ROS_INFO("The location of turtle1 is X:%f   Y:%f   T:%f \n", turtlesim_pose.x, turtlesim_pose.y, turtlesim_pose.theta);
-	
-	
-	
 	
 		eucDist += near;
 		checkTurtle1();
 		
 	}
-	
-	
+	double tEnd = ros::Time::now().toSec();
+	double duration = tEnd - tStart;
 	/*************************************************************
 	As soon as the mission is completed, display the names of all the T turtles, the total Euclidean
 	distance traveled by the turtle1, average velocity, total time taken, and total distance traveled that
 	is calculated by ∑velocity*∆time on the screen, and stop turtle1 at current position.
 	*************************************************************/
 	//turtle names already printed
-	
+	ROS_INFO("Hooray! All T turtles successfully captured!! \n");
 	ROS_INFO("Total Euclidean Distance traveled: %f", eucDist);
-	ROS_INFO("Average velocity is 1 radians/second");
+	ROS_INFO("Average velocity is 1 units/second");
+	ROS_INFO("Total time taken is %f seconds", duration);
+	ROS_INFO("Total distance traveled is 1 u/s * %f = %f", eucDist, eucDist);
 	
 	ros::spin();
 }
@@ -191,7 +178,6 @@ void checkTurtle1(){
 		return;
 	else{
 		ROS_INFO("Turtle 1 Destroyed! Mission Failed.");
-		// Print total distance / time etc
 		ros::shutdown();
 		exit(1);
 	}
@@ -201,12 +187,6 @@ void checkTurtle1(){
 double setDesOr(double dar, bool cw)
 {
 	double rar = dar - turtlesim_pose.theta;
-	ROS_INFO("The relative angle is %f", rar * 180 / PI);
-	if (cw)
-		ROS_INFO("turtle will move clockwise\n");
-	else
-		ROS_INFO("turtle will move counter-clockwise\n");
-	//cw = ((rar < 0)? true:false);
 	rotate(abs(rar), cw);
 }
 
@@ -215,7 +195,7 @@ void rotate (double angl, bool cw)
 	geometry_msgs::Twist vel_msg;
 	double curr_ang = 0.0;	
 	double t0 = ros::Time::now().toSec();
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(100);
 	double ang_speed = 1;
 
 	//no linear velocity
@@ -243,8 +223,8 @@ void rotate (double angl, bool cw)
 		curr_ang = ang_speed * (t1 - t0);
 		ros::spinOnce();
 		loop_rate.sleep();
-	//0.10472
-	}while (curr_ang < angl - 0.105);
+	
+	}while (curr_ang < angl);
 	
 	//force turtle to stop moving once loop is complete
 	vel_msg.angular.z = 0;
@@ -272,21 +252,21 @@ void move(double dist)
 	do {
 		velocity_publisher.publish(vel_msg);
 		bool jump = false;
-		for (int b = 0; b < 10 && jump == false; b++)
-		{
-			jump = isTooClose(spawnedTurtles_X[b].pose.x, spawnedTurtles_X[b].pose.y, turtlesim_pose.x, turtlesim_pose.y, .75);
-			//ROS_INFO("got here");
-		}
-		
-		if(jump)
-		{
-			system("rosservice call /turtle1/teleport_relative 1.1 0");
-			dist -= 1.1;
-		}
-
 		double t1 = ros::Time::now().toSec();
 		curr_dist = speed * (t1 - t0);
-		//ROS_INFO("distance %f", curr_dist);
+		
+		for (int b = 0; b < 10 && jump == false; b++)
+		{
+			jump = isTooClose(spawnedTurtles_X[b].pose.x, spawnedTurtles_X[b].pose.y, turtlesim_pose.x, turtlesim_pose.y, .7);
+
+			if(jump)
+			{
+				//ROS_INFO("will jump");
+				system("rosservice call /turtle1/teleport_relative 1.2 0");
+				dist -= 1.2;
+			}
+		}
+		
 		ros::spinOnce();
 		loop_rate.sleep();
 		
